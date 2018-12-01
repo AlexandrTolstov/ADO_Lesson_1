@@ -3,63 +3,236 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Data.SqlClient;
 using System.Data;
+using System.Data.Common;
+using System.Data.SqlClient;
+using System.Net.Http.Headers;
 
-namespace ConsoleApp1
+namespace ConsoleApplication3
 {
     class Program
     {
-        private static string connectionString = "";
+        static string connetionString;
 
         static Program()
         {
-            connectionString = @"Data Source = SD\ITSTEP_SQLSERVER; Initial Catalog=Kassa24; User Id=Shag; Password=1;";
+            connetionString = @"Data Source = SD\ITSTEP_SQLSERVER; Initial Catalog=Kassa24; User Id=Shag; Password=1;";
         }
+
         static void Main(string[] args)
         {
             Console.ForegroundColor = ConsoleColor.White;
+            Exmpl04();
+        }
+
+        static void Exmpl04()
+        {
             SqlConnection con = new SqlConnection();
-            con.ConnectionString = connectionString;
-            //событие на изменение состояния connection
+            con.ConnectionString = connetionString;
+
+            //событие на измнения состояния Connection
             con.StateChange += Con_StateChange;
             con.InfoMessage += Con_InfoMessage;
 
-            SqlCommand smd = new SqlCommand();
-            smd.Connection = con;
+            SqlCommand cmd = new SqlCommand();
+            cmd.Connection = con;
+            cmd.CommandText = "select * from Table_Operator; select * from Table_Prefix";
 
-            SqlParameter paramLogo = new SqlParameter();
-            paramLogo.ParameterName = "Logo";
-            paramLogo.Value = "SQL LOGO";
-            paramLogo.DbType = DbType.String;
-            smd.Parameters.Add(paramLogo);
+            DataSet ds = new DataSet();
 
-            smd.Parameters.Add(new SqlParameter()
+            SqlDataAdapter da = new SqlDataAdapter(cmd);
+            da.Fill(ds);
+
+            Exmpl04_1(ref ds);
+            //ds.Tables[0].AcceptChanges();
+
+            //foreach (DataRow row in ds.Tables[0]
+            //    .GetChanges(DataRowState.Modified)
+            //    .Rows)
+            //{
+
+            //}
+
+            try
+            {
+                //ds.Tables[0].TableName = "Table_Operator";
+
+
+                #region select data
+                foreach (DataRow row in ds.Tables[0].Rows)
+                {
+                    if (row.RowState == DataRowState.Modified)
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                    else if (row.RowState == DataRowState.Deleted)
+                        Console.ForegroundColor = ConsoleColor.Red;
+                    else if (row.RowState == DataRowState.Added)
+                        Console.ForegroundColor = ConsoleColor.Green;
+                    else
+                        Console.ForegroundColor = ConsoleColor.White;
+
+                    Console.WriteLine("{0} - {1}\t{2}",
+                        row["OperatorId"], row["Name"], row.RowState);
+
+                    for (int i = 0; i < row.ItemArray.Length; i++)
+                    {
+                        Console.WriteLine("Before {0}: After  {1}",
+                       row[i, DataRowVersion.Original],
+                       row[i, DataRowVersion.Current]);
+                    }
+
+                    Console.ForegroundColor = ConsoleColor.White;
+                }
+                #endregion
+
+
+                DataRow dr = ds.Tables[0].NewRow();
+                dr["Logo"] = "logo url2";
+                dr["Name"] = "name oper2";
+                dr["Tax"] = 5;
+                ds.Tables[0].Rows.Add(dr);
+                ds.AcceptChanges();
+
+                try
+                {
+                    SqlCommandBuilder scb = new SqlCommandBuilder(da);
+                    da.Update(ds);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+
+
+
+                #region
+
+                //foreach (DataTable table in ds.Tables)
+                //{
+                //    Console.WriteLine(table.TableName);
+                //    //foreach (DataColumn column in table.Columns)
+                //    //{
+                //    //    Console.WriteLine("\t-> {0}", column.ColumnName);
+                //    //}
+
+                //    Console.WriteLine("-------------------------------------");
+                //    foreach (DataRow row in table.Rows)
+                //    {
+                //        var items = row.ItemArray;
+                //        foreach (var cells in row.ItemArray)
+                //        {
+                //            Console.Write("{0}\t", cells);
+                //        }
+                //        Console.WriteLine("");
+                //    }
+                //}
+
+                #endregion
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+            finally
+            {
+                con.Dispose();
+            }
+        }
+
+        static void Exmpl04_1(ref DataSet ds)
+        {
+            foreach (DataRow row in ds.Tables[0].Rows)
+            {
+                row["Logo"] = "-";
+            }
+
+            ////edit row
+            //ds.Tables[0].Rows[0].ItemArray[1] = "-";
+            //ds.Tables[0].Rows[1].ItemArray[1] = "-";
+            //ds.Tables[0].Rows[2].ItemArray[1] = "-";
+            //ds.Tables[0].Rows[3].ItemArray[1] = "-";
+
+            ds.Tables[0].Rows.RemoveAt(6);
+
+            DataRow dr = ds.Tables[0].NewRow();
+            dr["Logo"] = "logo url2";
+            dr["Name"] = "name oper2";
+            ds.Tables[0].Rows.Add(dr);
+        }
+
+
+        //function return Cursor
+        static void Exmpl03()
+        {
+            SqlConnection con = new SqlConnection();
+            con.ConnectionString = connetionString;
+
+            //событие на измнения состояния Connection
+            con.StateChange += Con_StateChange;
+            con.InfoMessage += Con_InfoMessage;
+
+            SqlCommand cmd = new SqlCommand();
+            cmd.Connection = con;
+            cmd.CommandText = "";
+
+            try
+            {
+                con.Open();
+
+                var result = cmd.ExecuteNonQuery();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+            }
+            finally
+            {
+                con.Dispose();
+            }
+        }
+
+        //procedure
+        static void Exmpl02()
+        {
+            SqlConnection con = new SqlConnection();
+            con.ConnectionString = connetionString;
+
+            //событие на измнения состояния Connection
+            con.StateChange += Con_StateChange;
+            con.InfoMessage += Con_InfoMessage;
+
+            SqlCommand cmd = new SqlCommand();
+            cmd.Connection = con;
+
+
+            SqlParameter pramLogo = new SqlParameter
+            {
+                ParameterName = "Logo",
+                Value = "SQL LOGO",
+                DbType = DbType.String
+            };
+            cmd.Parameters.Add(pramLogo);
+
+            cmd.Parameters.Add(new SqlParameter()
             {
                 ParameterName = "Name",
-                Value = "Name Company",
+                Value = "NAME COMPANY",
                 DbType = DbType.String
-
             });
 
-            smd.Parameters.Add(new SqlParameter()
+            cmd.Parameters.Add(new SqlParameter()
             {
                 ParameterName = "Tax",
                 Value = 20,
                 DbType = DbType.Double
-
             });
 
-            smd.CommandText = "execute [dbo].[CreateOperator] @Logo, @Name, @Tax";
-
-
+            cmd.CommandText = "execute [dbo].[CreateOperator] @Logo, @Name, @Tax";
 
             try
             {
                 con.Open();
 
-                var result = smd.ExecuteNonQuery();
-
+                var result = cmd.ExecuteNonQuery();
             }
             catch (Exception ex)
             {
@@ -71,56 +244,57 @@ namespace ConsoleApp1
             }
         }
 
-        static void Example1()
+        static void exmpl01()
         {
-            Console.ForegroundColor = ConsoleColor.White;
+
             SqlConnection con = new SqlConnection();
-            con.ConnectionString = connectionString;
-            //событие на изменение состояния connection
+            con.ConnectionString = connetionString;
+
+            //событие на измнения состояния Connection
             con.StateChange += Con_StateChange;
             con.InfoMessage += Con_InfoMessage;
 
-            SqlCommand smd = new SqlCommand();
-            smd.Connection = con;
-            //smd.CommandText = "select * from Table_Operator; select * from Table_Prefix";
-            smd.CommandText = "print ' -> Table_Operator'; select * from Table_Operator; print ' -> Table_Prefix'; select * from Table_Prefix";
+            SqlCommand cmd = new SqlCommand();
+            cmd.Connection = con;
+            cmd.CommandText = "print '-> Table_Operator'; select * from Table_Operator; print '-> Table_Prefix'; select * from Table_Prefix";
 
-            #region ExecuteReader
             try
             {
                 con.Open();
 
-                SqlDataReader dr = smd.ExecuteReader();
+                #region  ExecuteReader
+                SqlDataReader dr = cmd.ExecuteReader();
 
-                //если только один запрос
                 //while (dr.Read())
                 //{
-                //    string str = string.Format("ID: {0}\t{1} - {2}", dr[0], dr[2], dr[3]);
+                //    string str = string.Format("ID: {0}\t{1} - {2}",
+                //        dr[0], dr[2], dr[3]);
 
                 //    Console.WriteLine(str);
                 //}
 
-                //если два запроса сразу
                 do
                 {
-                    if (dr.GetSchemaTable().TableName == "Table_Operator")
+                    //if (dr.GetSchemaTable().TableName == "Table_Operator")
+                    //{
+                    while (dr.Read())
                     {
-                        while (dr.Read())
-                        {
-                            string str = string.Format("ID: {0}\t{1} - {2}", dr[0], dr[2], dr[3]);
+                        string str = string.Format("ID: {0}\t{1} ",
+                            dr[0], dr[2]);
 
-                            Console.WriteLine(str);
-                        }
+                        Console.WriteLine(str);
                     }
-
+                    //}
                 } while (dr.NextResult());
 
                 dr.Close();
+
                 #endregion
-                #region Execute Scalar
-                smd.CommandText = "select count(*) from Table_Operator";
-                int count = Convert.ToInt32(smd.ExecuteScalar());
-                Console.WriteLine("Table Operator {0} count", count);
+
+                #region  ExecuteScalar
+                cmd.CommandText = "select count(*) from Table_Operator";
+                int count = Convert.ToInt32(cmd.ExecuteScalar());
+                Console.WriteLine("Table_Operator {0} count", count);
                 #endregion
             }
             catch (Exception ex)
@@ -131,21 +305,23 @@ namespace ConsoleApp1
             {
                 con.Dispose();
             }
-
         }
 
         private static void Con_InfoMessage(object sender, SqlInfoMessageEventArgs e)
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
-            SqlConnection con = sender as SqlConnection;
-            Console.WriteLine("{0:hh:mm:ss} - {1}", DateTime.Now, e.Message);
-            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("{0:hh:mm:ss} - {1}",
+                DateTime.Now, e.Message);
+            Console.ForegroundColor = ConsoleColor.White;
         }
 
         private static void Con_StateChange(object sender, StateChangeEventArgs e)
         {
             SqlConnection con = sender as SqlConnection;
-            Console.WriteLine("{0:hh:mm:ss} - {1}", DateTime.Now, con.State);
+
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("{0:hh:mm:ss} - {1}",
+                DateTime.Now, con.State);
             Console.ForegroundColor = ConsoleColor.White;
         }
     }
